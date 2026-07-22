@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+.env
+.env.local
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# 运行时日志(由 api_server 重定向产生)
+api_server.err
+api_server.out
+*.log
+
+# 备份文件
+index_v1_backup.html
+*.bak
+*.tmp
+
+# 大文件 / 二进制构建产物
+*.pyc
+node_modules/
+dist/
+build/

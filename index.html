@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>建筑构造数据库 | TectonicDB</title>
+<style>
+:root {
+  --bg: #1a1a1a; --card: #222; --card-2: #252525;
+  --primary: #ff9e4a; --primary-dark: #ffb370;
+  --accent:  #38bdf8; --accent-2: #6366f1;
+  --text: #eaeaea; --text-muted: #94a3b8;
+  --border: #3a3a3a; --border-light: #2a2a2a;
+  --success: #22c55e; --danger: #ff6b6b;
+  --shadow: 0 1px 3px rgba(0,0,0,.4);
+  --radius: 10px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'PingFang SC','Microsoft YaHei',sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+a { color: var(--accent); text-decoration: none; }
+
+/* ── 顶部导航 ── */
+.navbar { background: var(--card); border-bottom: 1px solid var(--border); padding: 0 24px; height: 56px; display: flex; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: var(--shadow); }
+.navbar-brand { font-size: 18px; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+.navbar-brand span { color: var(--text-muted); font-weight: 400; font-size: 13px; margin-left: 8px; }
+.nav-tabs { display: flex; gap: 4px; margin-left: 40px; list-style: none; }
+.nav-tabs li a { padding: 6px 16px; border-radius: 6px; color: var(--text-muted); text-decoration: none; font-size: 14px; cursor: pointer; }
+.nav-tabs li a:hover { background: #2a2a2a; color: var(--text); }
+.nav-tabs li a.active { background: var(--primary); color: #fff; }
+
+.container { max-width: 1440px; margin: 0 auto; padding: 24px; }
+.page { display: none; }
+.page.active { display: block; }
+
+/* ── BIMcontent 风格 构件库主界面 ── */
+.library-layout { display: grid; grid-template-columns: 240px 1fr; gap: 24px; margin-top: 8px; }
+.filter-panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; align-self: start; position: sticky; top: 80px; max-height: calc(100vh - 100px); overflow-y: auto; }
+.filter-group { border-bottom: 1px solid var(--border-light); padding: 10px 0; }
+.filter-group:last-child { border-bottom: none; }
+.filter-group-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 8px; display: flex; justify-content: space-between; cursor: pointer; }
+.filter-group-title::after { content: '∧'; color: var(--text-muted); transition: transform .2s; }
+.filter-group.collapsed .filter-group-title::after { content: '∨'; }
+.filter-group.collapsed .filter-options { display: none; }
+.filter-options { display: flex; flex-direction: column; gap: 4px; }
+.filter-option { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: 4px; font-size: 12px; cursor: pointer; }
+.filter-option:hover { background: #2a2a2a; }
+.filter-option input { margin: 0; }
+.filter-option-label { flex: 1; }
+.filter-option-count { color: var(--text-muted); font-size: 11px; }
+
+/* 顶部 Banner */
+.lib-banner { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.lib-banner-card { border-radius: 12px; padding: 18px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.lib-banner-left  { background: linear-gradient(135deg, #06b6d4 0%, #6366f1 100%); }
+.lib-banner-right { background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%); }
+.lib-banner-title { font-size: 17px; font-weight: 700; color: #fff; line-height: 1.4; max-width: 60%; }
+.lib-banner-desc  { font-size: 12px; color: rgba(255,255,255,0.85); margin-top: 4px; }
+.lib-banner-cta   { padding: 8px 20px; background: rgba(255,255,255,0.95); color: #1a1a1a; border-radius: 999px; font-size: 13px; font-weight: 700; cursor: pointer; border: none; white-space: nowrap; }
+.lib-banner-cta:hover { background: #fff; }
+
+/* 工具栏 */
+.lib-toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+.lib-search { flex: 1; min-width: 240px; position: relative; }
+.lib-search input { width: 100%; padding: 10px 16px 10px 36px; border: 1px solid var(--border); border-radius: 999px; background: #2a2a2a; color: var(--text); font-size: 14px; outline: none; }
+.lib-search::before { content: '🔍'; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 13px; opacity: 0.6; }
+.lib-search input:focus { border-color: var(--primary); }
+.lib-sort { padding: 8px 14px; border: 1px solid var(--border); border-radius: 999px; background: #2a2a2a; color: var(--text); font-size: 13px; cursor: pointer; outline: none; }
+.lib-stats { font-size: 12px; color: var(--text-muted); margin-left: auto; }
+
+/* 卡片网格 */
+.lib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.lib-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; cursor: pointer; transition: all .2s; position: relative; }
+.lib-card:hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,.4); }
+.lib-card-thumb { width: 100%; aspect-ratio: 4/3; background: #0f172a; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.lib-card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lib-card-body { padding: 10px 12px 12px; }
+.lib-card-name { font-size: 13px; font-weight: 600; line-height: 1.4; color: var(--text); margin-bottom: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 36px; }
+.lib-card-meta { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+.lib-card-meta-ext { padding: 1px 6px; border-radius: 3px; font-weight: 700; color: #fff; font-size: 10px; }
+.lib-card-dim { font-size: 10px; color: var(--accent); }
+.lib-card-download { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; padding: 6px 10px; background: #2a2a2a; border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 12px; cursor: pointer; transition: all .15s; }
+.lib-card-download:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+/* 已选筛选 chips */
+.lib-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; min-height: 24px; }
+.lib-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; background: var(--primary); color: #fff; border-radius: 999px; font-size: 11px; }
+.lib-chip-remove { cursor: pointer; font-size: 14px; line-height: 1; opacity: 0.8; }
+.lib-chip-remove:hover { opacity: 1; }
+.lib-chip-clear { padding: 3px 10px; background: #2a2a2a; color: var(--text-muted); border-radius: 999px; font-size: 11px; cursor: pointer; }
+.lib-chip-clear:hover { color: var(--text); }
+
+/* 空状态 */
+.lib-empty { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+.lib-empty-icon { font-size: 48px; opacity: .4; margin-bottom: 12px; }
+
+/* 详情弹窗(继承) */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--card); border-radius: 14px; width: 100%; max-width: 880px; max-height: 90vh; overflow-y: auto; }
+.modal-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: var(--card); z-index: 1; }
+.modal-title { font-size: 18px; font-weight: 600; }
+.modal-close { width: 32px; height: 32px; border-radius: 50%; border: none; background: #3a3a3a; color: var(--text); cursor: pointer; font-size: 18px; }
+.modal-body { padding: 24px; }
+
+.tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin-bottom: 20px; }
+.tab-btn { padding: 8px 20px; border: none; background: transparent; cursor: pointer; font-size: 14px; color: var(--text-muted); border-bottom: 2px solid transparent; margin-bottom: -2px; }
+.tab-btn:hover, .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.layer-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 20px; }
+.layer-table th { text-align: left; padding: 8px 12px; background: #252525; border-bottom: 2px solid var(--border); font-size: 12px; color: var(--text-muted); }
+.layer-table td { padding: 8px 12px; border-bottom: 1px solid #2a2a2a; vertical-align: top; }
+.layer-seq { font-weight: 700; color: var(--primary); width: 40px; }
+.layer-name { font-weight: 600; width: 130px; }
+.layer-dir { background: #1a3358; color: #7dd3fc; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-left: 6px; }
+
+.reg-list { display: flex; flex-direction: column; gap: 10px; }
+.reg-item { background: #252525; border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; }
+.reg-code { font-weight: 700; color: var(--primary); margin-bottom: 4px; }
+.reg-name { font-size: 14px; margin-bottom: 4px; }
+.reg-clauses { font-size: 12px; color: var(--text-muted); }
+.reg-mandatory { background: var(--danger); color: #1a1a1a; font-size: 10px; padding: 1px 6px; border-radius: 4px; margin-left: 6px; }
+
+.pitfall-item { background: #3d1a1a; border-left: 3px solid var(--danger); padding: 12px 16px; border-radius: 0 6px 6px 0; margin-bottom: 10px; }
+.pitfall-correct { background: #1a3d2e; border-left-color: var(--success); }
+.pitfall-wrong { color: #fca5a5; margin-bottom: 6px; font-size: 13px; }
+.pitfall-correct-text { color: #86efac; font-size: 13px; }
+.pitfall-meta { display: flex; gap: 8px; margin-top: 6px; font-size: 11px; }
+.exam-relevance { background: var(--primary); color: #fff; padding: 1px 8px; border-radius: 4px; }
+
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; margin-bottom: 20px; }
+.detail-item { font-size: 13px; }
+.detail-label { color: var(--text-muted); font-size: 11px; margin-bottom: 2px; }
+.detail-value { font-weight: 500; }
+
+.recommend-form { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; }
+.form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group.flex-1 { flex: 1; min-width: 140px; }
+.form-group label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+.form-group select, .form-group input { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; outline: none; background: #2a2a2a; color: var(--text); }
+
+.empty { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+.empty-icon { font-size: 48px; margin-bottom: 12px; opacity: .4; }
+.empty p { font-size: 14px; }
+
+.recommend-reason { background: #1a3358; border-left: 3px solid var(--primary); padding: 8px 12px; font-size: 13px; border-radius: 0 6px 6px 0; margin-top: 8px; color: #93c5fd; }
+
+.toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; background: var(--success); color: #fff; border-radius: 8px; font-size: 14px; opacity: 0; transform: translateY(10px); transition: .2s; z-index: 300; }
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.error { background: var(--danger); }
+
+.exam-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.exam-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+.exam-chapter { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+.exam-topic { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+.exam-content { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 10px; }
+.exam-keypoint { background: #1a3d2e; border-left: 3px solid var(--success); padding: 8px 12px; font-size: 13px; border-radius: 0 6px 6px 0; }
+.freq-badge { font-size: 11px; padding: 2px 8px; border-radius: 20px; }
+.freq-high { background: #3d1a1a; color: #fca5a5; }
+.freq-mid { background: #3d3a1a; color: #fde68a; }
+.freq-low { background: #1a3d2e; color: #86efac; }
+
+.image-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.gallery-item { background: #252525; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; cursor: pointer; transition: .2s; }
+.gallery-item:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.5); }
+.gallery-item img { width: 100%; height: 160px; object-fit: cover; display: block; background: #1a1a1a; }
+.gallery-item .caption { padding: 8px 10px; font-size: 12px; color: var(--text-muted); }
+.image-empty { text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 14px; }
+.image-empty .empty-icon { font-size: 36px; opacity: .4; margin-bottom: 8px; }
+
+.cad-list { display: flex; flex-direction: column; gap: 10px; }
+.cad-item { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: #252525; border: 1px solid var(--border); border-radius: 8px; transition: .15s; }
+.cad-item:hover { border-color: var(--primary); background: #2a2a2a; }
+.cad-info { display: flex; align-items: center; gap: 14px; flex: 1; }
+.cad-icon { width: 44px; height: 44px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 12px; }
+.cad-icon.dwg { background: #dc2626; }
+.cad-icon.skp { background: #059669; }
+.cad-icon.pdf { background: #ff9e4a; }
+.cad-icon.dxf { background: #7c3aed; }
+.cad-meta { display: flex; flex-direction: column; gap: 2px; }
+.cad-name { font-weight: 600; font-size: 14px; }
+.cad-info-row { font-size: 12px; color: var(--text-muted); }
+.cad-download { padding: 8px 18px; background: var(--primary); color: #fff; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 500; cursor: pointer; }
+.cad-download:hover { background: var(--primary-dark); }
+
+.lightbox-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.9); z-index: 500; display: none; align-items: center; justify-content: center; padding: 20px; }
+.lightbox-overlay.open { display: flex; }
+.lightbox-img { max-width: 90vw; max-height: 90vh; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+.lightbox-close { position: absolute; top: 20px; right: 20px; width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,.2); border: none; color: #fff; font-size: 20px; cursor: pointer; }
+
+/* 旧方法卡片(做法维度 Tab 用) */
+.methods-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.method-card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); padding: 18px; box-shadow: var(--shadow); cursor: pointer; transition: .2s; }
+.method-card:hover { border-color: var(--primary); box-shadow: 0 4px 12px rgba(255,158,74,.3); }
+.method-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+.method-title { font-size: 16px; font-weight: 600; }
+.method-code { font-size: 12px; color: var(--text-muted); background: #2a2a2a; padding: 2px 8px; border-radius: 4px; }
+.method-subtype { font-size: 12px; color: var(--primary); background: #1a3358; padding: 2px 8px; border-radius: 4px; margin-bottom: 8px; display: inline-block; }
+.method-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 12px; }
+.method-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.tag { font-size: 11px; padding: 2px 8px; border-radius: 20px; }
+.tag-fire-A { background: #1a3d2e; color: #86efac; }
+.tag-fire-B1 { background: #3d3a1a; color: #fde68a; }
+.tag-fire-B2 { background: #3d1a1a; color: #fca5a5; }
+.tag-cost-low { background: #1a3d2e; color: #86efac; }
+.tag-cost-mid { background: #3d3a1a; color: #fde68a; }
+.tag-cost-high { background: #3d1a1a; color: #fca5a5; }
+.tag-water-1 { background: #1a3358; color: #93c5fd; }
+.tag-water-2 { background: #25224a; color: #a5b4fc; }
+
+.search-bar { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+.search-bar input, .search-bar select { padding: 10px 16px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 14px; outline: none; background: #2a2a2a; color: var(--text); }
+.search-bar input { flex: 1; min-width: 200px; }
+.search-bar input:focus, .search-bar select:focus { border-color: var(--primary); }
+.btn { padding: 10px 20px; border-radius: var(--radius); border: none; font-size: 14px; cursor: pointer; font-weight: 500; }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+.btn-sm { padding: 6px 14px; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="navbar-brand">🏗 构造库<span>TectonicDB v2.0</span></div>
+  <ul class="nav-tabs">
+    <li><a class="active" onclick="switchTab('library')">🧱 构件库</a></li>
+    <li><a onclick="switchTab('methods')">📚 做法维度</a></li>
+    <li><a onclick="switchTab('atlas')">📖 图集库</a></li>
+    <li><a onclick="switchTab('ai-gen')">🤖 AI 生成</a></li>
+    <li><a onclick="switchTab('recommend')">🎯 场景推荐</a></li>
+    <li><a onclick="switchTab('pitfalls')">⚠️ 易错点</a></li>
+    <li><a onclick="switchTab('exam')">📝 考试学习</a></li>
+  </ul>
+</nav>
+
+<!-- ── 构件库(主页,BIMcontent 风格) ── -->
+<div id="page-library" class="container page active">
+  <!-- 顶部双 Banner -->
+  <div class="lib-banner">
+    <div class="lib-banner-card lib-banner-left">
+      <div>
+        <div class="lib-banner-title">想快速调用 07-Tectonic 构件?</div>
+        <div class="lib-banner-desc">用 AI 识别概念图,自动在构造库匹配 → 通过 MCP 生成 SKP / Rhino / Revit 模型</div>
+      </div>
+      <button class="lib-banner-cta" onclick="switchTab('ai-gen')">🚀 AI 生成</button>
+    </div>
+    <div class="lib-banner-card lib-banner-right">
+      <div>
+        <div class="lib-banner-title">Missing 类型?</div>
+        <div class="lib-banner-desc">把你项目里的 SKP / DWG / RVT 拖进 07-Tectonic,自动入库</div>
+      </div>
+      <button class="lib-banner-cta" onclick="toast('拖拽上传功能: 下个版本')">📥 导入文件</button>
+    </div>
+  </div>
+
+  <div class="library-layout">
+    <!-- 左侧多维筛选 -->
+    <aside class="filter-panel" id="filterPanel">
+      <div class="filter-group" data-group="ext">
+        <div class="filter-group-title">📦 文件格式</div>
+        <div class="filter-options" id="filterExt"></div>
+      </div>
+      <div class="filter-group" data-group="role">
+        <div class="filter-group-title">🎨 文件角色</div>
+        <div class="filter-options" id="filterRole"></div>
+      </div>
+      <div class="filter-group" data-group="dim-part">
+        <div class="filter-group-title">📐 十大部件</div>
+        <div class="filter-options" id="filterPart"></div>
+      </div>
+      <div class="filter-group" data-group="dim-skill">
+        <div class="filter-group-title">🎓 技能库</div>
+        <div class="filter-options" id="filterSkill"></div>
+      </div>
+      <div class="filter-group collapsed" data-group="dim-atlas">
+        <div class="filter-group-title">📖 构造图集</div>
+        <div class="filter-options" id="filterAtlas"></div>
+      </div>
+    </aside>
+
+    <!-- 主区:工具栏 + 网格 -->
+    <div>
+      <div class="lib-toolbar">
+        <div class="lib-search">
+          <input type="text" id="libSearch" placeholder="Type to search (D07 / 墙体 / door...)" oninput="onLibSearch()">
+        </div>
+        <select class="lib-sort" id="libSort" onchange="onLibSort()">
+          <option value="newest">⬇ By Newest</option>
+          <option value="name">A → Z</option>
+          <option value="size">By Size (大→小)</option>
+        </select>
+        <div class="lib-stats" id="libStats">—</div>
+      </div>
+
+      <div class="lib-chips" id="libChips"></div>
+
+      <div id="libGrid" class="lib-grid">
+        <div class="lib-empty"><div class="lib-empty-icon">⏳</div><p>加载中...</p></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 做法维度(原构造做法) ── -->
+<div id="page-methods" class="container page">
+  <div class="search-bar">
+    <input type="text" id="searchInput" placeholder="搜索构造做法…如'屋面/防水/外墙'" oninput="searchMethods()">
+    <select id="filterCategory" onchange="searchMethods()">
+      <option value="">全部分类</option>
+    </select>
+    <select id="filterCost" onchange="searchMethods()">
+      <option value="">造价等级</option>
+      <option value="低">💰 经济</option>
+      <option value="中">💰💰 中端</option>
+      <option value="中高">💰💰💰 中高</option>
+      <option value="高">💰💰💰💰 高端</option>
+    </select>
+    <button class="btn btn-outline btn-sm" onclick="resetSearch()">重置</button>
+  </div>
+  <div id="methodsGrid" class="methods-grid"></div>
+</div>
+
+<!-- ── 图集库(07-Tectonic 三维度索引) ── -->
+<div id="page-atlas" class="container page">
+  <div class="search-bar">
+    <input type="text" id="atlasSearch" placeholder="搜索节点名称/编号 (如 D07)..." oninput="searchAtlas()">
+    <select id="atlasDimSwitch" onchange="switchAtlasDim()">
+      <option value="part">📐 十大部件</option>
+      <option value="skill">🎓 技能库</option>
+      <option value="atlas">📖 构造图集</option>
+    </select>
+    <select id="atlasCatFilter" onchange="searchAtlas()">
+      <option value="">全部分类</option>
+    </select>
+    <select id="atlasExtFilter" onchange="searchAtlas()">
+      <option value="">全部文件类型</option>
+      <option value="skp">📦 SKP(三维模型)</option>
+      <option value="pdf">📄 PDF(说明文档)</option>
+      <option value="png">🖼 PNG(示意图)</option>
+      <option value="dwg">📐 DWG(节点图)</option>
+      <option value="md">📝 MD(说明文档)</option>
+    </select>
+  </div>
+  <div id="atlasSummary" style="margin-bottom: 16px; font-size: 13px; color: var(--text-muted);"></div>
+  <div id="atlasDimList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-bottom: 24px;"></div>
+  <div id="atlasGrid" class="methods-grid"></div>
+</div>
+
+<!-- ── AI 生成(概念图→MCP) ── -->
+<div id="page-ai-gen" class="container page">
+  <div class="recommend-form">
+    <h3 style="margin-bottom: 14px; font-size: 15px;">🧠 AI 构造生成(概念图 → MCP)</h3>
+    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.6;">
+      上传概念图或输入关键字,AI 在 07-Tectonic 中匹配构造做法,再调用 MCP 服务(Sketchup / Rhino / Revit)生成模型。
+      <br><span style="color: var(--warning);">⚠ 本期仅做关键字匹配 + MCP 接口预留,概念图识别与真实模型生成待 MCP 服务就位后启用。</span>
+    </p>
+    <div class="form-row">
+      <div class="form-group flex-1">
+        <label>关键字(部位/做法/材料)</label>
+        <input type="text" id="aiKeyword" placeholder="如:墙体/屋面/幕墙/D07" value="墙体">
+      </div>
+      <div class="form-group">
+        <label>目标建模工具</label>
+        <select id="aiTarget">
+          <option value="sketchup">SketchUp</option>
+          <option value="rhino">Rhino</option>
+          <option value="revit">Revit</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>&nbsp;</label>
+        <button class="btn btn-primary btn-sm" onclick="doAiGen()">🚀 匹配构造 + 调用 MCP</button>
+      </div>
+    </div>
+  </div>
+  <div id="aiGenResult"></div>
+  <div id="aiGenMcpInfo" style="margin-top: 24px; padding: 16px; background: #252525; border-radius: 8px; font-size: 12px; color: var(--text-muted);">
+    <h4 style="margin-bottom: 8px; color: var(--primary); font-size: 13px;">📋 MCP 服务状态</h4>
+    <div id="mcpStatusBox">加载中...</div>
+  </div>
+</div>
+
+<!-- ── 场景推荐 ── -->
+<div id="page-recommend" class="container page">
+  <div class="recommend-form">
+    <h3 style="margin-bottom:14px; font-size:15px;">🎯 场景化推荐</h3>
+    <div class="form-row">
+      <div class="form-group flex-1">
+        <label>部位</label>
+        <select id="recCategory">
+          <option value="roof">屋面</option>
+          <option value="wall">墙体</option>
+          <option value="floor">楼地面</option>
+          <option value="foundation">基础</option>
+          <option value="joint">变形缝</option>
+          <option value="curtain">幕墙</option>
+          <option value="door_win">门窗</option>
+        </select>
+      </div>
+      <div class="form-group flex-1">
+        <label>建筑类型</label>
+        <select id="recBuilding">
+          <option value="住宅">住宅</option>
+          <option value="办公">办公</option>
+          <option value="商业">商业</option>
+          <option value="公建">公建</option>
+          <option value="工业">工业</option>
+        </select>
+      </div>
+      <div class="form-group flex-1">
+        <label>气候区</label>
+        <select id="recClimate">
+          <option value="">不限</option>
+          <option value="严寒">严寒</option>
+          <option value="寒冷">寒冷</option>
+          <option value="夏热冬冷">夏热冬冷</option>
+          <option value="夏热冬暖">夏热冬暖</option>
+        </select>
+      </div>
+      <div class="form-group flex-1" id="trafficGroup">
+        <label>是否上人</label>
+        <select id="recTraffic">
+          <option value="">不限</option>
+          <option value="上人">上人</option>
+          <option value="不上人">不上人</option>
+          <option value="绿化">绿化</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>&nbsp;</label>
+        <button class="btn btn-primary btn-sm" onclick="doRecommend()">推荐</button>
+      </div>
+    </div>
+  </div>
+  <div id="recommendResult" class="methods-grid"></div>
+</div>
+
+<!-- ── 易错点 ── -->
+<div id="page-pitfalls" class="container page">
+  <h2 style="font-size:18px; margin-bottom:16px;">⚠️ 高频易错点</h2>
+  <div id="pitfallList" class="reg-list"></div>
+</div>
+
+<!-- ── 考试学习 ── -->
+<div id="page-exam" class="container page">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+    <h2 style="font-size:18px;">📝 考试学习 · 章节4.2 建筑构造</h2>
+    <select class="form-group" style="padding:8px 12px; border:1px solid var(--border); border-radius:6px;" id="examChapter" onchange="loadExam()">
+      <option value="4.2">第4.2章</option>
+    </select>
+  </div>
+  <div id="examGrid" class="exam-grid"></div>
+</div>
+
+<!-- ── 详情弹窗(通用) ── -->
+<div id="methodModal" class="modal-overlay" onclick="if(event.target===this)closeMethodModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">—</div>
+      <button class="modal-close" onclick="closeMethodModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="modalTags" style="margin-bottom:14px;"></div>
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchMethodTab('basic')">基本信息</button>
+        <button class="tab-btn" onclick="switchMethodTab('gallery')">图片</button>
+        <button class="tab-btn" onclick="switchMethodTab('cad')">文件下载</button>
+        <button class="tab-btn" onclick="switchMethodTab('layers')">构造层次</button>
+        <button class="tab-btn" onclick="switchMethodTab('regs')">规范依据</button>
+      </div>
+      <div id="tab-basic" class="tab-content active">
+        <div class="detail-grid" id="basicInfo"></div>
+        <h4 style="margin:20px 0 8px; font-size:14px;">适用场景</h4>
+        <p id="applicableText" style="font-size:13px; color:var(--text-muted); line-height:1.6;"></p>
+      </div>
+      <div id="tab-layers" class="tab-content">
+        <table class="layer-table">
+          <thead><tr><th>序号</th><th>层名</th><th>材料/做法</th><th>厚度(mm)</th><th>性能要求</th><th>备注</th></tr></thead>
+          <tbody id="layerList"></tbody>
+        </table>
+      </div>
+      <div id="tab-regs" class="tab-content">
+        <div id="regList" class="reg-list"></div>
+      </div>
+      <div id="tab-gallery" class="tab-content">
+        <div id="imageGallery" class="image-gallery"></div>
+      </div>
+      <div id="tab-cad" class="tab-content">
+        <div id="cadList" class="cad-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<div id="lightbox" class="lightbox-overlay" onclick="if(event.target===this||event.target.tagName==='IMG')closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">×</button>
+  <img id="lightboxImg" class="lightbox-img" src="" alt="">
+</div>
+
+<script>
+// ============================================================
+// TectonicDB v2.0  2026-07-13 重构
+// 主页: BIMcontent 风格的"构件库" + 多维筛选
+// ============================================================
+const API = '/api';
+
+// 全局状态
+let methods = [];
+let categories = {};
+let atlasData = { part: [], skill: [], atlas: [] };
+let atlasCurrentDim = 'part';
+let atlasCurrentMethods = [];
+
+// 构件库状态
+let libState = {
+  filters: { ext: new Set(), role: new Set(), part: new Set(), skill: new Set(), atlas: new Set() },
+  q: '',
+  sort: 'newest',
+  total: 0,
+};
+
+// 扩展名 → 颜色 / 图标
+const EXT_STYLE = {
+  skp:  { color: '#059669', icon: '📦', label: 'SKP' },
+  rvt:  { color: '#2563eb', icon: '🏢', label: 'RVT' },
+  dwg:  { color: '#dc2626', icon: '📐', label: 'DWG' },
+  dxf:  { color: '#7c3aed', icon: '📐', label: 'DXF' },
+  pdf:  { color: '#ff9e4a', icon: '📄', label: 'PDF' },
+  png:  { color: '#a855f7', icon: '🖼', label: 'PNG' },
+  jpg:  { color: '#a855f7', icon: '🖼', label: 'JPG' },
+  svg:  { color: '#a855f7', icon: '🎨', label: 'SVG' },
+  md:   { color: '#64748b', icon: '📝', label: 'MD' },
+  docx: { color: '#1d4ed8', icon: '📑', label: 'DOCX' },
+};
+
+async function init() {
+  await Promise.all([
+    loadLibrary(),       // 构件库
+    loadMethods(),       // 做法维度
+    loadCategories(),
+    loadPitfalls(),
+    loadExam(),
+    loadAtlasAll(),
+    loadMcpStatus(),
+  ]);
+  buildCategoryFilter();
+  // 左侧筛选 group 折叠
+  document.querySelectorAll('.filter-group-title').forEach(t => {
+    t.addEventListener('click', () => t.parentElement.classList.toggle('collapsed'));
+  });
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + tab).classList.add('active');
+  document.querySelectorAll('.nav-tabs a').forEach(a => a.classList.remove('active'));
+  event.target.classList.add('active');
+  // 滚到顶
+  window.scrollTo(0, 0);
+}
+
+// ============================================================
+// 构件库(主页)
+// ============================================================
+async function loadLibrary() {
+  // 拉筛选项
+  try {
+    const r = await fetch(API + '/files/filters');
+    const d = await r.json();
+    renderFilterPanel(d);
+  } catch(e) { console.error('load filters', e); }
+  // 拉默认列表
+  await loadFiles();
+}
+
+function renderFilterPanel(d) {
+  // ext
+  const extHtml = Object.entries(d.ext_counts || {}).map(([ext, n]) =>
+    `<label class="filter-option">
+      <input type="checkbox" data-group="ext" data-value="${ext}" ${libState.filters.ext.has(ext) ? 'checked' : ''} onchange="onFilterChange()">
+      <span style="color:${EXT_STYLE[ext]?.color || '#94a3b8'};">${EXT_STYLE[ext]?.icon || '📄'}</span>
+      <span class="filter-option-label">${(EXT_STYLE[ext]?.label || ext).toUpperCase()}</span>
+      <span class="filter-option-count">${n}</span>
+    </label>`).join('');
+  document.getElementById('filterExt').innerHTML = extHtml || '<div style="color:#94a3b8;font-size:11px;">无</div>';
+
+  // role
+  const roleHtml = Object.entries(d.role_counts || {}).map(([role, n]) =>
+    `<label class="filter-option">
+      <input type="checkbox" data-group="role" data-value="${role}" ${libState.filters.role.has(role) ? 'checked' : ''} onchange="onFilterChange()">
+      <span class="filter-option-label">${role}</span>
+      <span class="filter-option-count">${n}</span>
+    </label>`).join('');
+  document.getElementById('filterRole').innerHTML = roleHtml || '<div style="color:#94a3b8;font-size:11px;">无</div>';
+
+  // dims
+  const renderDimList = (list, group) =>
+    list.map(c =>
+      `<label class="filter-option">
+        <input type="checkbox" data-group="${group}" data-value="${c.code}" ${libState.filters[group === 'dim-part' ? 'part' : group === 'dim-skill' ? 'skill' : 'atlas'].has(c.code) ? 'checked' : ''} onchange="onFilterChange()">
+        <span class="filter-option-label">${c.name}</span>
+        <span class="filter-option-count">${c.count}</span>
+      </label>`).join('');
+
+  document.getElementById('filterPart').innerHTML  = renderDimList(d.dims?.part  || [], 'dim-part');
+  document.getElementById('filterSkill').innerHTML = renderDimList(d.dims?.skill || [], 'dim-skill');
+  document.getElementById('filterAtlas').innerHTML = renderDimList(d.dims?.atlas || [], 'dim-atlas');
+}
+
+function onFilterChange() {
+  // 重置
+  libState.filters = { ext: new Set(), role: new Set(), part: new Set(), skill: new Set(), atlas: new Set() };
+  document.querySelectorAll('.filter-option input:checked').forEach(cb => {
+    const g = cb.dataset.group;
+    const v = cb.dataset.value;
+    const map = { ext: 'ext', role: 'role', 'dim-part': 'part', 'dim-skill': 'skill', 'dim-atlas': 'atlas' };
+    if (map[g]) libState.filters[map[g]].add(v);
+  });
+  loadFiles();
+  renderChips();
+}
+
+function onLibSearch() {
+  libState.q = document.getElementById('libSearch').value.trim();
+  // debounce
+  clearTimeout(window._libSearchTimer);
+  window._libSearchTimer = setTimeout(loadFiles, 200);
+}
+
+function onLibSort() {
+  libState.sort = document.getElementById('libSort').value;
+  loadFiles();
+}
+
+function renderChips() {
+  const chips = [];
+  const groupLabel = { ext: '格式', role: '角色', part: '部件', skill: '技能', atlas: '图集' };
+  ['ext', 'role', 'part', 'skill', 'atlas'].forEach(g => {
+    libState.filters[g].forEach(v => {
+      const displayName = g === 'ext' ? (EXT_STYLE[v]?.label || v).toUpperCase() : v;
+      chips.push(`<span class="lib-chip">${groupLabel[g]}: ${displayName} <span class="lib-chip-remove" onclick="removeChip('${g}','${v}')">×</span></span>`);
+    });
+  });
+  const clearBtn = chips.length ? `<span class="lib-chip-clear" onclick="clearAllChips()">✕ 全部清除</span>` : '';
+  document.getElementById('libChips').innerHTML = chips.join('') + clearBtn;
+}
+
+function removeChip(g, v) {
+  libState.filters[g].delete(v);
+  // 同步 UI checkbox
+  const cbMap = { ext: 'ext', role: 'role', part: 'dim-part', skill: 'dim-skill', atlas: 'dim-atlas' };
+  document.querySelectorAll(`input[data-group="${cbMap[g]}"][data-value="${v}"]`).forEach(cb => cb.checked = false);
+  loadFiles();
+  renderChips();
+}
+
+function clearAllChips() {
+  libState.filters = { ext: new Set(), role: new Set(), part: new Set(), skill: new Set(), atlas: new Set() };
+  document.querySelectorAll('.filter-option input').forEach(cb => cb.checked = false);
+  loadFiles();
+  renderChips();
+}
+
+async function loadFiles() {
+  const params = new URLSearchParams();
+  if (libState.filters.ext.size)   params.set('ext',  Array.from(libState.filters.ext).join(','));
+  if (libState.filters.role.size)  params.set('role', Array.from(libState.filters.role).join(','));
+  // dim 筛选:多选时只取第一个(简化,后端只支持单 dim)
+  if (libState.filters.part.size)  params.set('dim',  'part:' + Array.from(libState.filters.part)[0]);
+  else if (libState.filters.skill.size) params.set('dim', 'skill:' + Array.from(libState.filters.skill)[0]);
+  else if (libState.filters.atlas.size) params.set('dim', 'atlas:' + Array.from(libState.filters.atlas)[0]);
+  if (libState.q) params.set('q', libState.q);
+  if (libState.sort) params.set('sort', libState.sort);
+  params.set('limit', '200');
+
+  const grid = document.getElementById('libGrid');
+  grid.innerHTML = '<div class="lib-empty"><div class="lib-empty-icon">⏳</div><p>加载中...</p></div>';
+
+  try {
+    const r = await fetch(API + '/files?' + params);
+    const d = await r.json();
+    libState.total = d.total;
+    document.getElementById('libStats').textContent = `${d.total} of ${d.total} files`;
+    renderFiles(d.items);
+    renderChips();
+  } catch(e) {
+    grid.innerHTML = `<div class="lib-empty"><div class="lib-empty-icon">⚠️</div><p>加载失败: ${e.message}</p></div>`;
+  }
+}
+
+function renderFiles(items) {
+  const grid = document.getElementById('libGrid');
+  if (!items.length) {
+    grid.innerHTML = '<div class="lib-empty"><div class="lib-empty-icon">🔍</div><p>没有匹配的构件</p></div>';
+    return;
+  }
+  grid.innerHTML = items.map(f => {
+    const ext = (f.ext || '').toLowerCase();
+    const style = EXT_STYLE[ext] || { color: '#64748b', icon: '📄', label: ext.toUpperCase() };
+    const sizeStr = f.size_kb > 1024 ? (f.size_kb / 1024).toFixed(1) + ' MB' : (f.size_kb || 0) + ' KB';
+    const dimTags = [];
+    if (f.part_name)  dimTags.push(`<span class="lib-card-dim">${f.part_name}</span>`);
+    if (f.atlas_name) dimTags.push(`<span class="lib-card-dim">${f.atlas_name}</span>`);
+    if (f.skill_name) dimTags.push(`<span class="lib-card-dim">${f.skill_name}</span>`);
+    return `<div class="lib-card" onclick="openFileModal(${f.id})">
+      <div class="lib-card-thumb">
+        <img src="${f.thumbnail_url}" alt="${f.filename}" loading="lazy" onerror="this.style.display='none'">
+      </div>
+      <div class="lib-card-body">
+        <div class="lib-card-name" title="${f.filename}">${f.filename}</div>
+        <div class="lib-card-meta">
+          <span class="lib-card-meta-ext" style="background:${style.color};">${style.label}</span>
+          <span>${sizeStr}</span>
+          ${f.role && f.role !== 'other' ? `<span>· ${f.role}</span>` : ''}
+        </div>
+        ${dimTags.length ? `<div class="lib-card-meta">${dimTags.join('')}</div>` : ''}
+        <button class="lib-card-download" onclick="event.stopPropagation(); copyFilePath(${f.id}, '${f.filename}')">
+          📂 复制本机路径
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function copyFilePath(fileId, filename) {
+  try {
+    const r = await fetch(API + '/file/open/' + fileId);
+    const d = await r.json();
+    if (d.abs_path) {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(d.abs_path);
+        toast('📋 已复制: ' + filename);
+      } else {
+        toast('路径: ' + d.abs_path);
+      }
+    }
+  } catch(e) {
+    toast('复制失败: ' + e.message, true);
+  }
+}
+
+async function openFileModal(fileId) {
+  // 拉详情
+  let file;
+  try {
+    const r = await fetch(API + '/files/by-ext/_all_?file_id=' + fileId).catch(() => null);
+  } catch(e) {}
+  // 用 method 详情接口(file 来自 method)
+  // 简化:从 list 接口拿不到单条,直接重新查
+  try {
+    // 先通过 method_id/files 接口拿
+    const allFiles = await fetch(API + '/files?limit=200').then(r => r.json());
+    const f = allFiles.items.find(x => x.id === fileId);
+    if (!f) { toast('文件不存在', true); return; }
+    // 显示弹窗(简化版,复用现有 modal)
+    const ext = (f.ext || '').toLowerCase();
+    const style = EXT_STYLE[ext] || { color: '#64748b', icon: '📄', label: ext.toUpperCase() };
+    document.getElementById('modalTitle').textContent = f.filename;
+    document.getElementById('modalTags').innerHTML =
+      `<span class="method-subtype">📦 07-Tectonic 构件</span>` +
+      `<span class="tag" style="background:${style.color};color:#fff;">${style.label}</span>` +
+      (f.role ? `<span class="tag" style="background:#1a3358;color:#7dd3fc;">${f.role}</span>` : '') +
+      (f.method_name ? `<span class="tag" style="background:#2a2a2a;color:#94a3b8;">节点: ${f.method_name}</span>` : '');
+
+    const info = [
+      ['文件 ID', f.id],
+      ['文件名', f.filename],
+      ['扩展名', f.ext.toUpperCase()],
+      ['角色', f.role],
+      ['文件大小', (f.size_kb || 0) + ' KB'],
+      ['所在节点', f.method_name || '—'],
+      ['节点编号', f.atlas_code || '—'],
+      ['所属部件', f.part_name || '—'],
+      ['所属图集', f.atlas_name || '—'],
+      ['所属技能', f.skill_name || '—'],
+      ['所在路径', f.rel_path || '—'],
+    ];
+    document.getElementById('basicInfo').innerHTML = info.map(([l, v]) =>
+      `<div class="detail-item"><div class="detail-label">${l}</div><div class="detail-value">${v}</div></div>`
+    ).join('');
+    document.getElementById('applicableText').innerHTML = `本构件来自 07-Tectonic 原始文件库。点击下方"文件下载"Tab 复制本机路径,或用 SketchUp/AutoCAD 等本机应用打开。`;
+
+    // imageGallery:用缩略图
+    document.getElementById('imageGallery').innerHTML = `<div class="gallery-item" onclick="openLightbox('${f.thumbnail_url}')">
+      <img src="${f.thumbnail_url}" alt="${f.filename}">
+      <div class="caption">${f.filename}</div>
+    </div>`;
+    // cadList:下载按钮(复制路径)
+    document.getElementById('cadList').innerHTML = `<div class="cad-item">
+      <div class="cad-info">
+        <div class="cad-icon" style="background:${style.color};">${style.label}</div>
+        <div class="cad-meta">
+          <div class="cad-name">${f.filename}</div>
+          <div class="cad-info-row">${(f.size_kb || 0)} KB · ${f.rel_path || ''}</div>
+        </div>
+      </div>
+      <a class="cad-download" onclick="copyFilePath(${f.id}, '${f.filename}')">📂 复制本机路径</a>
+    </div>`;
+    // layers / regs:空
+    document.getElementById('layerList').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-muted);">构件级暂无构造层次,见"做法维度"Tab</td></tr>';
+    document.getElementById('regList').innerHTML  = '<p style="color:var(--text-muted);font-size:13px;">构件级暂无规范记录,见"做法维度"Tab</p>';
+
+    // Tab 复位
+    document.querySelectorAll('#methodModal .tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#methodModal .tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelector('#methodModal .tab-btn').classList.add('active');
+    document.getElementById('tab-basic').classList.add('active');
+
+    document.getElementById('methodModal').classList.add('open');
+  } catch(e) {
+    toast('打开失败: ' + e.message, true);
+  }
+}
+
+// ============================================================
+// 构造做法(原 v1,保留)
+// ============================================================
+async function loadMethods() {
+  try {
+    const r = await fetch(API + '/methods');
+    methods = await r.json();
+    renderMethods(methods);
+  } catch(e) {
+    document.getElementById('methodsGrid').innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><p>无法连接API服务<br><small>请先运行: python api_server.py</small></p></div>';
+  }
+}
+
+async function loadCategories() {
+  try {
+    const r = await fetch(API + '/categories');
+    const cats = await r.json();
+    cats.forEach(c => categories[c.code] = c);
+  } catch(e) {}
+}
+
+function buildCategoryFilter() {
+  const sel = document.getElementById('filterCategory');
+  const groups = {};
+  methods.forEach(m => { if (m.category_name && !groups[m.category_name]) groups[m.category_name] = m.category_id; });
+  Object.entries(groups).forEach(([name, id]) => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    sel.appendChild(opt);
+  });
+}
+
+function resetSearch() {
+  document.getElementById('searchInput').value = '';
+  document.getElementById('filterCategory').value = '';
+  document.getElementById('filterCost').value = '';
+  renderMethods(methods);
+}
+
+function searchMethods() {
+  const kw = document.getElementById('searchInput').value.trim();
+  const cat = document.getElementById('filterCategory').value;
+  const cost = document.getElementById('filterCost').value;
+  const filtered = methods.filter(m => {
+    if (cat && m.category_name !== cat) return false;
+    if (cost && m.cost_tier !== cost) return false;
+    if (kw) {
+      const k = kw.toLowerCase();
+      const src = [m.name, m.short_desc, m.applicable, m.sub_type].filter(Boolean);
+      if (!src.some(v => v.toString().toLowerCase().includes(k))) return false;
+    }
+    return true;
+  });
+  renderMethods(filtered);
+}
+
+function renderMethods(list) {
+  const grid = document.getElementById('methodsGrid');
+  if (!list.length) {
+    grid.innerHTML = '<div class="empty"><div class="empty-icon">🔍</div><p>没有找到匹配的构造做法</p></div>';
+    return;
+  }
+  grid.innerHTML = list.map(m => {
+    const fireClass = m.fire_grade && m.fire_grade.includes('A') ? 'tag-fire-A' :
+                      m.fire_grade && m.fire_grade.includes('B1') ? 'tag-fire-B1' :
+                      m.fire_grade && m.fire_grade.includes('B2') ? 'tag-fire-B2' : '';
+    const costClass = m.cost_tier === '低' ? 'tag-cost-low' :
+                      m.cost_tier === '高' ? 'tag-cost-high' : 'tag-cost-mid';
+    const waterClass = m.waterproof_grade === 'I级' ? 'tag-water-1' : 'tag-water-2';
+    return '<div class="method-card" onclick="openMethod(' + m.id + ')">' +
+      '<div class="method-header">' +
+        '<div class="method-title">' + m.name + '</div>' +
+        '<span class="method-code">' + m.code + '</span>' +
+      '</div>' +
+      (m.sub_type ? '<span class="method-subtype">' + m.sub_type + '</span>' : '') +
+      '<div class="method-desc">' + (m.short_desc || '—') + '</div>' +
+      '<div class="method-tags">' +
+        (m.fire_grade ? '<span class="tag ' + fireClass + '">🔥 ' + m.fire_grade + '</span>' : '') +
+        (m.waterproof_grade ? '<span class="tag ' + waterClass + '">💧 ' + m.waterproof_grade + '防水</span>' : '') +
+        (m.cost_tier ? '<span class="tag ' + costClass + '">💰 ' + m.cost_tier + '</span>' : '') +
+      '</div>' +
+      (m.unit_cost ? '<div style="font-size:13px; color:var(--text-muted);">综合造价：<b style="color:var(--primary)">' + m.unit_cost + ' 元/m²</b></div>' : '') +
+    '</div>';
+  }).join('');
+}
+
+async function openMethod(id) {
+  const r = await fetch(API + '/methods/' + id);
+  const m = await r.json();
+  if (m.error) return;
+
+  document.getElementById('modalTitle').textContent = m.name;
+
+  const fireClass = m.fire_grade && m.fire_grade.includes('A') ? 'tag-fire-A' :
+                    m.fire_grade && m.fire_grade.includes('B1') ? 'tag-fire-B1' : '';
+  const costClass = m.cost_tier === '低' ? 'tag-cost-low' : m.cost_tier === '高' ? 'tag-cost-high' : 'tag-cost-mid';
+  const tags = [];
+  if (m.sub_type) tags.push('<span class="method-subtype">' + m.sub_type + '</span>');
+  if (m.fire_grade) tags.push('<span class="tag ' + fireClass + '">🔥 ' + m.fire_grade + '</span>');
+  if (m.waterproof_grade) tags.push('<span class="tag tag-water-1">💧 ' + m.waterproof_grade + '防水</span>');
+  if (m.cost_tier) tags.push('<span class="tag ' + costClass + '">💰 ' + m.cost_tier + '</span>');
+  if (m.unit_cost) tags.push('<span class="tag" style="background:#f0f9ff;color:#0369a1">📐 ' + m.unit_cost + ' 元/m²</span>');
+  document.getElementById('modalTags').innerHTML = tags.join(' ');
+
+  const info = [
+    ['做法编号', m.code],
+    ['所属部位', m.category_name],
+    ['子类', m.sub_type],
+    ['防水等级', m.waterproof_grade || '—'],
+    ['主要防火', m.fire_grade],
+    ['气候区', m.climate_zone || '—'],
+    ['造价档位', m.cost_tier],
+    ['综合造价', m.unit_cost ? m.unit_cost + ' 元/m²' : '—'],
+    ['来源文档', m.source_doc || '—'],
+  ];
+  document.getElementById('basicInfo').innerHTML = info
+    .filter(([,v]) => v && v !== '—')
+    .map(([l,v]) => '<div class="detail-item"><div class="detail-label">' + l + '</div><div class="detail-value">' + v + '</div></div>')
+    .join('');
+  document.getElementById('applicableText').textContent = m.applicable || '—';
+
+  const layers = m.layers || [];
+  const dirText = layers.length && layers[0].direction === 'inside_out' ? '从内到外' : '从上到下';
+  document.getElementById('layerList').innerHTML =
+    '<tr><td colspan="6" style="background:#f0f9ff; color:#0369a1; padding:6px 12px; font-size:12px;">📐 构造层次 ' + dirText + '</td></tr>' +
+    layers.map(l =>
+      '<tr>' +
+        '<td class="layer-seq">' + l.seq + '</td>' +
+        '<td class="layer-name">' + l.layer_name + '</td>' +
+        '<td>' + (l.material || '—') + '</td>' +
+        '<td>' + (l.thickness_mm || '—') + '</td>' +
+        '<td>' + (l.performance || '—') + '</td>' +
+        '<td style="font-size:12px; color:var(--text-muted);">' + (l.remark || '') + '</td>' +
+      '</tr>'
+    ).join('');
+
+  const regs = m.regulations || [];
+  document.getElementById('regList').innerHTML = regs.length ? regs.map(r =>
+    '<div class="reg-item">' +
+      '<div class="reg-code">' + r.code + (r.is_mandatory ? '<span class="reg-mandatory">强条</span>' : '') + '</div>' +
+      '<div class="reg-name">' + r.name + '</div>' +
+      (r.clause_ref ? '<div style="font-size:12px;color:var(--primary);margin:4px 0;">📌 ' + r.clause_ref + '</div>' : '') +
+      '<div class="reg-clauses">' + (r.key_clauses || '') + '</div>' +
+    '</div>'
+  ).join('') : '<p style="color:var(--text-muted);font-size:13px;">暂无规范记录</p>';
+
+  document.querySelectorAll('#methodModal .tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#methodModal .tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelector('#methodModal .tab-btn').classList.add('active');
+  document.getElementById('tab-basic').classList.add('active');
+
+  loadImageGalleryT(m.id, m.image_urls);
+  loadCADListT(m.id, m.cad_files);
+
+  document.getElementById('methodModal').classList.add('open');
+}
+
+function loadImageGalleryT(methodId, urls) {
+  const gallery = document.getElementById('imageGallery');
+  let imgList = [];
+  try { imgList = typeof urls === 'string' ? JSON.parse(urls || '[]') : (urls || []); } catch(e) { imgList = []; }
+  if (!imgList.length) {
+    gallery.innerHTML = '<div class="image-empty"><div class="empty-icon">🖼</div><p>暂无图片素材</p></div>';
+    return;
+  }
+  gallery.innerHTML = imgList.map((url, i) => {
+    const imgUrl = (typeof url === 'string' ? url : url.url) || '';
+    const caption = (typeof url === 'object' && url.caption) ? url.caption : '图片 ' + (i+1);
+    const fullUrl = imgUrl.startsWith('http') ? imgUrl : (API + '/media/images/' + imgUrl);
+    return '<div class="gallery-item" onclick="openLightbox(\'' + fullUrl + '\')">' +
+      '<img src="' + fullUrl + '" alt="' + caption + '" loading="lazy">' +
+      '<div class="caption">' + caption + '</div></div>';
+  }).join('');
+}
+
+function openLightbox(url) {
+  const lb = document.getElementById('lightbox');
+  document.getElementById('lightboxImg').src = url;
+  lb.classList.add('open');
+}
+function closeLightbox() { document.getElementById('lightbox').classList.remove('open'); }
+
+function loadCADListT(methodId, cadFiles) {
+  const list = document.getElementById('cadList');
+  let files = [];
+  try { files = typeof cadFiles === 'string' ? JSON.parse(cadFiles || '[]') : (cadFiles || []); } catch(e) { files = []; }
+  if (!files.length) {
+    list.innerHTML = '<div class="image-empty"><div class="empty-icon">📁</div><p>暂无 CAD 文件</p></div>';
+    return;
+  }
+  list.innerHTML = files.map(f => {
+    const type = f.type ? f.type.toLowerCase() : 'dwg';
+    const url = API + '/media/cad/' + encodeURIComponent(f.filename);
+    const sizeKb = f.size ? (f.size / 1024).toFixed(0) + ' KB' : '—';
+    return '<div class="cad-item">' +
+      '<div class="cad-info">' +
+        '<div class="cad-icon ' + type + '">' + type.toUpperCase() + '</div>' +
+        '<div class="cad-meta">' +
+          '<div class="cad-name">' + (f.name || f.filename) + '</div>' +
+          '<div class="cad-info-row">' + f.filename + ' · ' + sizeKb + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<a class="cad-download" href="' + url + '" download="' + f.filename + '">⬇ 下载</a>' +
+    '</div>';
+  }).join('');
+}
+
+function switchMethodTab(tab) {
+  document.querySelectorAll('#methodModal .tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#methodModal .tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function closeMethodModal() {
+  document.getElementById('methodModal').classList.remove('open');
+}
+
+// ============================================================
+// 图集库(07-Tectonic 三维度索引)
+// ============================================================
+async function loadAtlasAll() {
+  for (const dim of ['part', 'skill', 'atlas']) {
+    try {
+      const r = await fetch(API + '/dim/' + dim);
+      atlasData[dim] = await r.json();
+    } catch(e) { console.error('loadAtlas ' + dim + ' failed', e); }
+  }
+  switchAtlasDim();
+}
+
+function switchAtlasDim() {
+  atlasCurrentDim = document.getElementById('atlasDimSwitch').value;
+  const sel = document.getElementById('atlasCatFilter');
+  sel.innerHTML = '<option value="">全部分类</option>';
+  (atlasData[atlasCurrentDim] || []).forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.code;
+    opt.textContent = c.name + (c.method_count ? ' (' + c.method_count + ')' : '');
+    sel.appendChild(opt);
+  });
+  renderDimList();
+  loadAtlasMethods();
+}
+
+function renderDimList() {
+  const wrap = document.getElementById('atlasDimList');
+  const list = atlasData[atlasCurrentDim] || [];
+  wrap.innerHTML = list.map(c => {
+    const active = c.method_count > 0 ? 'cursor:pointer;' : 'opacity:.4;cursor:not-allowed;';
+    return '<div onclick="' + (c.method_count > 0 ? 'selectAtlasCat(\'' + c.code + '\')' : '') + '" style="background:#252525;border:1px solid var(--border);border-radius:8px;padding:10px 12px;' + active + '">' +
+      '<div style="font-size:13px;font-weight:600;">' + c.name + '</div>' +
+      '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">' + c.code + ' · ' + c.method_count + ' 节点</div>' +
+    '</div>';
+  }).join('');
+}
+
+function selectAtlasCat(code) {
+  document.getElementById('atlasCatFilter').value = code;
+  loadAtlasMethods();
+}
+
+async function loadAtlasMethods() {
+  const cat = document.getElementById('atlasCatFilter').value;
+  const grid = document.getElementById('atlasGrid');
+  grid.innerHTML = '<div class="empty"><p>加载中...</p></div>';
+
+  if (cat) {
+    try {
+      const r = await fetch(API + '/methods/by-dim/' + atlasCurrentDim + '/' + encodeURIComponent(cat));
+      atlasCurrentMethods = await r.json();
+    } catch(e) { atlasCurrentMethods = []; }
+  } else {
+    const list = atlasData[atlasCurrentDim] || [];
+    atlasCurrentMethods = [];
+    for (const c of list) {
+      try {
+        const r = await fetch(API + '/methods/by-dim/' + atlasCurrentDim + '/' + encodeURIComponent(c.code));
+        const ms = await r.json();
+        atlasCurrentMethods = atlasCurrentMethods.concat(ms);
+      } catch(e) {}
+    }
+  }
+  renderAtlasGrid();
+}
+
+function searchAtlas() {
+  loadAtlasMethods();
+}
+
+function renderAtlasGrid() {
+  const kw   = (document.getElementById('atlasSearch')?.value || '').trim().toLowerCase();
+  const ext  = document.getElementById('atlasExtFilter').value;
+  let list = atlasCurrentMethods;
+  if (kw) {
+    list = list.filter(m => (m.name || '').toLowerCase().includes(kw) || (m.atlas_code || '').toLowerCase().includes(kw));
+  }
+
+  document.getElementById('atlasSummary').textContent =
+    '共 ' + list.length + ' 个节点 · 当前维度: ' + (atlasCurrentDim === 'part' ? '十大部件' : atlasCurrentDim === 'skill' ? '技能库' : '构造图集') +
+    (ext ? ' · 文件类型筛选: ' + ext.toUpperCase() : '');
+
+  const grid = document.getElementById('atlasGrid');
+  if (!list.length) {
+    grid.innerHTML = '<div class="empty"><div class="empty-icon">📁</div><p>该分类暂无节点</p></div>';
+    return;
+  }
+  grid.innerHTML = list.map(m =>
+    '<div class="method-card" onclick="openAtlasMethod(' + m.id + ')">' +
+      '<div class="method-header">' +
+        '<div class="method-title">' + (m.name || '—') + '</div>' +
+        (m.atlas_code ? '<span class="method-code">' + m.atlas_code + '</span>' : '') +
+      '</div>' +
+      '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">📂 ' + (m.dim_name || '—') + ' · 共 ' + m.file_count + ' 个文件</div>' +
+      '<div id="atlas-files-' + m.id + '" style="display:flex;gap:6px;flex-wrap:wrap;"></div>' +
+    '</div>'
+  ).join('');
+  list.forEach(m => loadFileBadges(m.id));
+}
+
+async function loadFileBadges(methodId) {
+  try {
+    const r = await fetch(API + '/method/' + methodId + '/files');
+    const d = await r.json();
+    const wrap = document.getElementById('atlas-files-' + methodId);
+    if (!wrap) return;
+    wrap.innerHTML = (d.files || []).map(f => {
+      const color = EXT_STYLE[f.ext]?.color || '#64748b';
+      return '<span title="' + f.filename + '" style="font-size:10px;background:' + color + ';color:#fff;padding:2px 6px;border-radius:3px;font-weight:600;">' + f.ext.toUpperCase() + '</span>';
+    }).join('');
+  } catch(e) {}
+}
+
+async function openAtlasMethod(methodId) {
+  let method;
+  try {
+    const r = await fetch(API + '/method/' + methodId + '/files');
+    method = await r.json();
+  } catch(e) { toast('加载失败', true); return; }
+  if (!method.method) { toast('节点不存在', true); return; }
+
+  const m = method.method;
+  const files = method.files || [];
+  const extCounts = {};
+  files.forEach(f => extCounts[f.ext] = (extCounts[f.ext] || 0) + 1);
+
+  document.getElementById('modalTitle').textContent = m.name + (m.atlas_code ? '  ·  ' + m.atlas_code : '');
+  document.getElementById('modalTags').innerHTML =
+    '<span class="method-subtype">📂 07-Tectonic 图集节点</span>' +
+    '<span class="tag" style="background:#1a3d2e;color:#86efac;">' + files.length + ' 个文件</span>' +
+    Object.keys(extCounts).map(ext => {
+      const color = EXT_STYLE[ext]?.color || '#64748b';
+      return '<span class="tag" style="background:' + color + ';color:#fff;">' + (EXT_STYLE[ext]?.label || ext).toUpperCase() + ' × ' + extCounts[ext] + '</span>';
+    }).join('');
+
+  const info = [
+    ['节点编号', m.atlas_code || '—'],
+    ['节点名称', m.name],
+    ['文件总数', files.length + ' 个'],
+    ['所在目录', files[0] ? files[0].rel_path.split('/').slice(0, -1).join('/') : '—'],
+  ];
+  document.getElementById('basicInfo').innerHTML = info.map(([l, v]) =>
+    '<div class="detail-item"><div class="detail-label">' + l + '</div><div class="detail-value">' + v + '</div></div>'
+  ).join('');
+  document.getElementById('applicableText').innerHTML =
+    '本节点是 07-Tectonic 文件库中的原始文件组(同一节点的不同格式归为一组: ' +
+    files.map(f => '<span style="background:#252525;padding:2px 8px;border-radius:4px;font-family:monospace;font-size:12px;margin:2px;">' + (EXT_STYLE[f.ext]?.label || f.ext).toUpperCase() + '</span>').join(' ') +
+    ')。点击下方"文件"Tab 可逐个打开或下载。';
+
+  const fileList = files.map(f => {
+    const color = EXT_STYLE[f.ext]?.color || '#64748b';
+    const sizeStr = f.size_kb > 1024 ? (f.size_kb/1024).toFixed(1) + ' MB' : f.size_kb + ' KB';
+    return '<div class="cad-item">' +
+      '<div class="cad-info">' +
+        '<div class="cad-icon" style="background:' + color + ';">' + (EXT_STYLE[f.ext]?.label || f.ext).toUpperCase() + '</div>' +
+        '<div class="cad-meta">' +
+          '<div class="cad-name">' + f.filename + '</div>' +
+          '<div class="cad-info-row">' + f.role + ' · ' + sizeStr + ' · ' + f.rel_path + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<a class="cad-download" onclick="copyFilePath(' + f.id + ', \'' + f.filename.replace(/'/g, "\\'") + '\')" style="cursor:pointer;">📂 打开本机文件</a>' +
+    '</div>';
+  }).join('');
+  document.getElementById('imageGallery').innerHTML = fileList || '<div class="image-empty"><p>无文件</p></div>';
+  document.getElementById('cadList').innerHTML = fileList || '<div class="image-empty"><p>无文件</p></div>';
+  document.getElementById('layerList').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-muted);">图集节点暂无构造层次,见其他 Tab</td></tr>';
+  document.getElementById('regList').innerHTML  = '<p style="color:var(--text-muted);font-size:13px;">图集节点暂无规范记录</p>';
+
+  document.querySelectorAll('#methodModal .tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#methodModal .tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelector('#methodModal .tab-btn').classList.add('active');
+  document.getElementById('tab-basic').classList.add('active');
+
+  document.getElementById('methodModal').classList.add('open');
+}
+
+// ============================================================
+// AI 生成(概念图 → 关键字 → MCP 调度)
+// ============================================================
+async function loadMcpStatus() {
+  try {
+    const r = await fetch(API + '/mcp/status');
+    const d = await r.json();
+    const box = document.getElementById('mcpStatusBox');
+    if (!box) return;
+    const dirs = d.mcp_dirs || {};
+    let html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">';
+    for (const [k, v] of Object.entries(dirs)) {
+      html += '<div style="background:#1a1a1a;padding:10px;border-radius:6px;border:1px solid var(--border);">' +
+                '<div style="font-weight:600;color:var(--primary);">' + k.toUpperCase() + ' MCP</div>' +
+                '<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">' + v + '</div>' +
+              '</div>';
+    }
+    html += '</div>';
+    html += '<div style="margin-top:12px;"><b>待办 TODO:</b><ol style="margin:6px 0 0 16px;padding:0;">';
+    (d.todo || []).forEach(t => html += '<li style="margin:3px 0;">' + t + '</li>');
+    html += '</ol></div>';
+    box.innerHTML = html;
+  } catch(e) {}
+}
+
+async function doAiGen() {
+  const keyword = document.getElementById('aiKeyword').value.trim();
+  const target  = document.getElementById('aiTarget').value;
+  const box     = document.getElementById('aiGenResult');
+  if (!keyword) { toast('请输入关键字', true); return; }
+  box.innerHTML = '<div class="empty"><p>调用中...</p></div>';
+  try {
+    const r = await fetch(API + '/mcp/dispatch', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ keyword, target_model: target })
+    });
+    const d = await r.json();
+    if (d.status === 'no_match') {
+      box.innerHTML = '<div class="empty"><div class="empty-icon">🤔</div><p>没有匹配的构造做法,试试换关键字</p></div>';
+      return;
+    }
+    let html = '<div style="margin-bottom:16px;padding:12px;background:#1a3358;border-left:3px solid var(--primary);border-radius:0 6px 6px 0;font-size:13px;">' +
+               '🔍 关键字: <b>' + d.detected_keyword + '</b> · 命中 <b>' + d.matched_methods.length + '</b> 个方法 · 目标: <b>' + d.mcp_call.target_model.toUpperCase() + '</b> MCP</div>';
+    html += '<div class="methods-grid">';
+    d.matched_methods.forEach(m => {
+      html += '<div class="method-card" onclick="openAtlasMethod(' + m.id + ')">' +
+                '<div class="method-header">' +
+                  '<div class="method-title">' + (m.name || '—') + '</div>' +
+                  (m.atlas_code ? '<span class="method-code">' + m.atlas_code + '</span>' : '') +
+                '</div>' +
+                '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">📂 ' + (m.part || m.atlas || m.skill || '—') + ' · ' + m.file_count + ' 文件</div>' +
+                '<div class="recommend-reason">🎯 准备调用 ' + d.mcp_call.target_model.toUpperCase() + ' MCP 生成此节点</div>' +
+              '</div>';
+    });
+    html += '</div>';
+    if (!d.mcp_call.callable) {
+      html += '<div style="margin-top:16px;padding:14px;background:#3d1a1a;border-left:3px solid var(--danger);border-radius:0 6px 6px 0;font-size:13px;">' +
+                '⚠ MCP 服务尚未实现:' + d.mcp_call.todo + '<br>实现后此按钮会真正生成 SKP/RVT 模型并提供下载链接。' +
+              '</div>';
+    }
+    box.innerHTML = html;
+  } catch(e) {
+    box.innerHTML = '<div class="empty"><p>调用失败: ' + e.message + '</p></div>';
+  }
+}
+
+// ============================================================
+// 场景推荐
+// ============================================================
+async function doRecommend() {
+  const cat = document.getElementById('recCategory').value;
+  const bld = document.getElementById('recBuilding').value;
+  const clm = document.getElementById('recClimate').value;
+  const trf = document.getElementById('recTraffic').value;
+
+  const params = new URLSearchParams({category: cat, building: bld});
+  if (clm) params.set('climate', clm);
+  if (trf) params.set('traffic', trf);
+
+  try {
+    const r = await fetch(API + '/recommend?' + params);
+    const list = await r.json();
+    renderRecommend(list);
+  } catch(e) {
+    document.getElementById('recommendResult').innerHTML = '<div class="empty"><p>无法获取推荐</p></div>';
+  }
+}
+
+function renderRecommend(list) {
+  const grid = document.getElementById('recommendResult');
+  if (!list.length) {
+    grid.innerHTML = '<div class="empty"><div class="empty-icon">🤔</div><p>没有匹配的做法，试试调整筛选条件</p></div>';
+    return;
+  }
+  grid.innerHTML = list.map(m =>
+    '<div class="method-card" onclick="openMethod(' + m.id + ')">' +
+      '<div class="method-header"><div class="method-title">' + m.name + '</div>' +
+      '<span class="method-code">' + m.code + '</span></div>' +
+      (m.sub_type ? '<span class="method-subtype">' + m.sub_type + '</span>' : '') +
+      '<div class="method-desc">' + (m.short_desc || '') + '</div>' +
+      (m.reason ? '<div class="recommend-reason">💡 ' + m.reason + '</div>' : '') +
+    '</div>'
+  ).join('');
+}
+
+// ============================================================
+// 易错点 / 考试
+// ============================================================
+async function loadPitfalls() {
+  try {
+    const r = await fetch(API + '/pitfalls');
+    const list = await r.json();
+    document.getElementById('pitfallList').innerHTML = list.map(p =>
+      '<div class="pitfall-item pitfall-correct">' +
+        '<div class="pitfall-wrong">❌ ' + p.wrong_statement + '</div>' +
+        '<div class="pitfall-correct-text">✅ ' + p.correct + '</div>' +
+        '<div class="pitfall-meta">' +
+          '<span class="exam-relevance">考点 ' + p.exam_relevance + '/10</span>' +
+          '<span style="background:#f1f5f9;color:#64748b;padding:1px 8px;border-radius:4px;">重要性 ' + p.importance + '</span>' +
+          (p.category_name ? '<span style="background:#3d2a1a;color:#ff9e4a;padding:1px 8px;border-radius:4px;">' + p.category_name + '</span>' : '') +
+        '</div>' +
+      '</div>'
+    ).join('');
+  } catch(e) {}
+}
+
+async function loadExam() {
+  const chapter = document.getElementById('examChapter').value;
+  try {
+    const r = await fetch(API + '/exam/chapter/' + chapter);
+    const list = await r.json();
+    const grid = document.getElementById('examGrid');
+    if (!list.length) {
+      grid.innerHTML = '<div class="empty"><div class="empty-icon">📝</div><p>暂无考试知识点</p></div>';
+      return;
+    }
+    grid.innerHTML = list.map(k => {
+      const freq = k.exam_freq === '高' ? 'freq-high' : k.exam_freq === '中' ? 'freq-mid' : 'freq-low';
+      return '<div class="exam-card">' +
+        '<div class="exam-chapter">' + k.chapter + '.' + (k.section || '') + '</div>' +
+        '<div class="exam-topic">' + k.topic + '</div>' +
+        '<div class="exam-content">' + k.content + '</div>' +
+        (k.key_point ? '<div class="exam-keypoint">💡 ' + k.key_point + '</div>' : '') +
+        '<div style="margin-top:10px;"><span class="freq-badge ' + freq + '">出题频率: ' + k.exam_freq + '</span>' +
+        '<span style="margin-left:8px;font-size:11px;color:#94a3b8;">难度: ' + k.difficulty + '</span></div>' +
+      '</div>';
+    }).join('');
+  } catch(e) {}
+}
+
+function toast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isError ? ' error' : '') + ' show';
+  setTimeout(() => t.className = 'toast' + (isError ? ' error' : ''), 2500);
+}
+
+init();
+</script>
+</body>
+</html>
