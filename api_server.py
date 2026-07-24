@@ -87,6 +87,68 @@ def get_methods():
     rows = db.execute(sql, params).fetchall()
     return jsonify(rows_to_list(rows))
 
+# ── 设计师选型推荐:气候区 × 部位 × 造价 ──
+@app.route('/api/methods/recommend')
+def recommend_methods():
+    """
+    设计师选型推荐(决策表)
+    参数(都可省):
+      climate: 严寒|寒冷|夏热冬冷|夏热冬暖|温和
+      part:    part code (e.g. 401_Roofs)
+      cost:    低|中|高|极高
+      limit:   默认 8
+    返回:按 match_score desc, file_count desc 排序
+    """
+    db = get_db()
+    climate = request.args.get('climate', '').strip()
+    part    = request.args.get('part', '').strip()
+    cost    = request.args.get('cost', '').strip()
+    try:
+        limit = int(request.args.get('limit', 8))
+    except ValueError:
+        limit = 8
+    limit = max(1, min(limit, 50))
+
+    sql = """
+        SELECT m.id, m.code, m.name, m.short_desc, m.cost_tier, m.unit_cost,
+               m.difficulty, m.climate_zones, m.file_count,
+               p.code AS part_code, p.name_zh AS part_name,
+               c.name AS category_name
+        FROM construction_methods m
+        LEFT JOIN dim_part p ON m.dim_part_id = p.id
+        LEFT JOIN categories c ON m.category_id = c.id
+        WHERE m.status = 'active'
+    """
+    params = []
+    if part:
+        sql += ' AND p.code = ?'
+        params.append(part)
+    if cost:
+        sql += ' AND m.cost_tier = ?'
+        params.append(cost)
+
+    rows = db.execute(sql, params).fetchall()
+    items = []
+    for r in rows:
+        try:
+            cz = json.loads(r['climate_zones'] or '[]')
+        except Exception:
+            cz = []
+        if climate and climate not in cz:
+            continue
+        score = (1 if climate and climate in cz else 0) \
+              + (1 if part and r['part_code'] == part else 0) \
+              + (1 if cost and r['cost_tier'] == cost else 0)
+        m = row_to_dict(r)
+        m['climate_zones'] = cz
+        m['match_score'] = score
+        m['part_code'] = r['part_code']
+        m['part_name'] = r['part_name']
+        items.append(m)
+
+    items.sort(key=lambda x: (x.get('match_score', 0), x.get('file_count') or 0), reverse=True)
+    return jsonify({'count': len(items), 'criteria': {'climate': climate, 'part': part, 'cost': cost}, 'items': items[:limit]})
+
 # ── 单个做法详情（含层次） ──
 @app.route('/api/methods/<int:method_id>')
 def get_method(method_id):

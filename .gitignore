@@ -21,12 +21,21 @@ Thumbs.db
 # 运行时日志(由 api_server 重定向产生)
 api_server.err
 api_server.out
+web.err
+web.out
 *.log
+# Flask reloader 调试模式自动产生的备份
+*-副本*.*
 
 # 备份文件
 index_v1_backup.html
 *.bak
+*.bak-*
 *.tmp
+construction.db.bak-*
+
+# 本机自启动脚本(不入库,见 schtasks 任务 "TectonicWeb-AutoStart")
+_runtime/
 
 # 大文件 / 二进制构建产物
 *.pyc

@@ -10,7 +10,7 @@ from pathlib import Path
 
 STATIC_DIR = Path(__file__).parent.parent / "TectonicWeb"
 API_TARGET = "http://127.0.0.1:5189"
-PORT = 8090
+PORT = 8092
 
 
 class UnifiedHandler(http.server.SimpleHTTPRequestHandler):
