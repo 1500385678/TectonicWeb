@@ -34,6 +34,9 @@ index_v1_backup.html
 *.tmp
 construction.db.bak-*
 
+# 临时调试脚本
+_tmp_*.py
+
 # 本机自启动脚本(不入库,见 schtasks 任务 "TectonicWeb-AutoStart")
 _runtime/
 
