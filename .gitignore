@@ -37,6 +37,9 @@ construction.db.bak-*
 # 临时调试脚本
 _tmp_*.py
 
+# 数据库不入库(本地留,clone 后用 init_db.py 重建)
+construction.db
+
 # 本机自启动脚本(不入库,见 schtasks 任务 "TectonicWeb-AutoStart")
 _runtime/
 
